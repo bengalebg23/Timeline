@@ -1,5 +1,5 @@
 // Family Timeline service worker
-const CACHE = 'timeline-v0.5.0';
+const CACHE = 'timeline-v0.5.1';
 const CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

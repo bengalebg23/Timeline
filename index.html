@@ -151,6 +151,9 @@ select.sel{font:inherit;color:var(--ink);background:var(--bg);border:1px solid v
 .sheet-in h2{font-family:var(--f-display);font-weight:800;font-size:1.35rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
 .det-cover{border-radius:12px;overflow:hidden;aspect-ratio:16/10;max-width:100%;background:var(--c);position:relative}
 .det-cover img{width:100%;height:100%;object-fit:cover;display:block}
+a.det-cover{display:block;text-decoration:none}
+.det-cover .go{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.62);color:#fff;font-weight:600;font-size:.8rem;padding:6px 11px;border-radius:999px}
+.det-cover .go svg{width:14px;height:14px;fill:currentColor}
 .det-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;color:var(--muted);font-size:.88rem}
 .det-meta .d{font-family:var(--f-mono);font-size:.78rem}
 .catpill{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink)}
@@ -195,7 +198,7 @@ img{max-width:100%}
 <header class="deck">
   <div class="deck-in">
     <div class="top">
-      <h1>Family Timeline <span class="ver" id="ver">v0.5.0</span></h1>
+      <h1>Family Timeline <span class="ver" id="ver">v0.5.1</span></h1>
       <div class="top-btns"><button type="button" id="btn-prio" class="icon-btn" aria-label="Year view priorities"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="13" height="4" rx="1.5"/><rect x="3" y="16" width="8" height="4" rx="1.5"/></svg></button>
       <button type="button" id="btn-menu" class="icon-btn" aria-label="Backup and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>
     </div>
@@ -220,7 +223,7 @@ img{max-width:100%}
 <script>
 (function(){
 'use strict';
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 const DAY = 86400000;
 const TOP = 28;
 const CATS = {
@@ -729,7 +732,9 @@ function openDetail(id){
   const st = statusInfo(ev);
   const cvar = '--c:var(--c-' + ev.cat + ')';
   const days = durationDays(ev);
-  const cover = ev.img ? '<div class="det-cover" style="' + cvar + '"><img src="' + imgSrc(ev) + '" alt=""></div>' : '';
+  const cover = !ev.img ? ''
+    : ev.album ? '<a class="det-cover" href="' + esc(ev.album) + '" target="_blank" rel="noopener" style="' + cvar + '" aria-label="Open photos in Amazon Photos"><img src="' + imgSrc(ev) + '" alt=""><span class="go">Open album <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg></span></a>'
+    : '<div class="det-cover" style="' + cvar + '"><img src="' + imgSrc(ev) + '" alt=""></div>';
   const album = ev.album
     ? '<div class="field"><a class="btn primary wide" href="' + esc(ev.album) + '" target="_blank" rel="noopener">Open photos in Amazon Photos</a><span class="url">' + esc(ev.album) + '</span></div>'
     : (st.kind === 'past' ? '<p class="hint">No album linked yet. Edit to add an Amazon Photos share link.</p>' : '');

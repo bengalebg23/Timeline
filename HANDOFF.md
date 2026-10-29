@@ -27,6 +27,7 @@ Live at https://bengalebg23.github.io/Timeline/
 - v0.3.0 Family category; May 2022 events added.
 - v0.4.0 Photo tiles at Years zoom; size + drag-to-rank priorities.
 - v0.5.0 Moved to GitHub Pages as a PWA (manifest, icons, service worker).
+- v0.5.1 Tapping the big cover photo in an event opens its Amazon Photos album.
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).
