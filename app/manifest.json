@@ -1,8 +1,8 @@
 {
-  "id": "./?app=timeline-1",
+  "id": "./?app=timeline-app",
   "name": "Family Timeline",
   "short_name": "Timeline",
-  "start_url": "./?app=timeline-1",
+  "start_url": "./?app=timeline-app",
   "scope": "./",
   "display": "standalone",
   "background_color": "#EEF1F4",

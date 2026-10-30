@@ -1,10 +1,11 @@
 # Family Timeline — HANDOFF
 
 Zoomable family timeline (Years → Months → Weeks) for looking back and planning ahead.
-Live at https://bengalebg23.github.io/Timeline/
+Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects there).
 
 ## Architecture
-- Single-file PWA: `index.html` + `sw.js` + `manifest.json` + icons. No build step.
+- Single-file PWA in `app/`: `index.html` + `sw.js` + `manifest.json` + icons. No build step.
+- Root `index.html` just redirects to `app/`; root `sw.js` is a retired worker that unregisters itself.
 - Data is stored **on the device only** (IndexedDB `family-timeline`, store `events`). Not shared between devices or people yet.
 - Small UI prefs in localStorage: `ft-filters`, `ft-scale`, `ft-seeded`, `ft-imported`, `ft-has-family`.
 - Photos: compressed to max 1200px JPEG (q0.8) and stored as data URLs inside each event.
@@ -28,7 +29,8 @@ Live at https://bengalebg23.github.io/Timeline/
 - v0.4.0 Photo tiles at Years zoom; size + drag-to-rank priorities.
 - v0.5.0 Moved to GitHub Pages as a PWA (manifest, icons, service worker).
 - v0.5.1 Tapping the big cover photo in an event opens its Amazon Photos album.
-- v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Bump the number if it ever gets stuck again.
+- v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Didn't help on its own.
+- v0.6.0 App moved into `app/` so Chrome sees a new scope, sidestepping a ghost "already installed" entry for /Timeline/. Data carries over (same origin).
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).
