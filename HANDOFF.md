@@ -28,6 +28,7 @@ Live at https://bengalebg23.github.io/Timeline/
 - v0.4.0 Photo tiles at Years zoom; size + drag-to-rank priorities.
 - v0.5.0 Moved to GitHub Pages as a PWA (manifest, icons, service worker).
 - v0.5.1 Tapping the big cover photo in an event opens its Amazon Photos album.
+- v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Bump the number if it ever gets stuck again.
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).

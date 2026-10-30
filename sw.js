@@ -1,6 +1,6 @@
 // Family Timeline service worker
-const CACHE = 'timeline-v0.5.1';
-const CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'timeline-v0.5.2';
+const CORE = ['./', './index.html', './manifest.json?v=2', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put('./index.html', copy));
       return res;
-    }).catch(() => caches.match('./index.html')));
+    }).catch(() => caches.match('./index.html', {ignoreSearch: true})));
     return;
   }
   e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
