@@ -192,13 +192,35 @@ html{color-scheme:light}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
+/* Tally (secret, PIN-locked): its own column on the right edge */
+h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#timeline.has-tally .card{right:34px}
+.tmark{position:absolute;right:0;width:30px;display:flex;align-items:center;justify-content:center;gap:2px;padding:0;border:0;background:transparent;z-index:2}
+.tmark i{width:6px;height:100%;max-height:6px;border-radius:2px;background:var(--c);flex:none}
+.tmark.w,.tmark.y{border:1px solid var(--line);background:var(--surface);border-radius:999px;font-family:var(--f-mono);font-size:.62rem;color:var(--ink);gap:3px}
+.tmark.y{border-left:3px solid var(--c)}
+.tmark.w i{width:5px;height:5px}
+.tpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto;width:100%}
+.tpad button{height:58px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font-size:1.35rem;font-weight:600}
+.tpad span{display:block}
+#tp-err{text-align:center;min-height:1.2em}
+.tdots{display:flex;gap:12px;justify-content:center;min-height:14px}
+.tdots i{width:13px;height:13px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--muted)}
+.tdots i.f{background:var(--ink);box-shadow:none}
+.tday{display:grid;gap:4px}
+.tday h3{font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 0}
+.trow{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.trow .tm{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.trow .tg{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.trow .tg::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c)}
+.trow .tx{grid-column:2;font-size:.84rem;color:var(--muted)}
 </style>
 </head>
 <body>
 <header class="deck">
   <div class="deck-in">
     <div class="top">
-      <h1>Family Timeline <span class="ver" id="ver">v0.6.0</span></h1>
+      <h1>Family Timeline <span class="ver" id="ver">v0.7.0</span></h1>
       <div class="top-btns"><button type="button" id="btn-prio" class="icon-btn" aria-label="Year view priorities"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="13" height="4" rx="1.5"/><rect x="3" y="16" width="8" height="4" rx="1.5"/></svg></button>
       <button type="button" id="btn-menu" class="icon-btn" aria-label="Backup and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>
     </div>
@@ -223,7 +245,7 @@ img{max-width:100%}
 <script>
 (function(){
 'use strict';
-const VERSION = '0.6.0';
+const VERSION = '0.7.0';
 const DAY = 86400000;
 const TOP = 28;
 const CATS = {
@@ -461,6 +483,7 @@ function computeRange(){
     if (ys < minY) minY = ys;
     if (ye > maxY) maxY = ye;
   });
+  if (tally.on) tally.days.forEach((v, k) => { const y = new Date(k).getUTCFullYear(); if (y < minY) minY = y; if (y > maxY) maxY = y; });
   return {t0: Date.UTC(minY, 0, 1), t1: Date.UTC(maxY + 1, 0, 1)};
 }
 function yOf(t){ return TOP + (t - state.t0) / DAY * state.scale; }
@@ -532,6 +555,10 @@ function render(){
     parts.push('<div class="bar k-' + statusInfo(ev).kind + '" style="--c:var(--c-' + ev.cat + ');left:' + (62 + lane * 8) + 'px;top:' + dy + 'px;height:' + Math.max(yOf(en + DAY) - dy, 4) + 'px"></div>');
   });
 
+  const showTally = tally.on && tally.show;
+  tl.classList.toggle('has-tally', showTally);
+  if (showTally) renderTally(parts, mode, sc);
+
   let bottom = 0;
   if (mode === 'year') bottom = layoutTiles(list, parts);
   else bottom = layoutCards(list, laneOf, mode, parts);
@@ -571,7 +598,7 @@ function layoutCards(list, laneOf, mode, parts){
 
 /* Years zoom: photo tiles placed by priority, staggered sideways, nudged up or down, then shrunk or dropped */
 function layoutTiles(list, parts){
-  const W = Math.max(160, tl.clientWidth - 100);
+  const W = Math.max(160, tl.clientWidth - 100 - (tally.on && tally.show ? 34 : 0));
   const dims = {
     L: Math.round(Math.min(150, W * 0.5)),
     M: Math.round(Math.min(96, W * 0.32)),
@@ -624,7 +651,7 @@ function renderFilters(){
   state.events.forEach(ev => { counts[ev.cat] = (counts[ev.cat] || 0) + 1; });
   document.getElementById('filters').innerHTML = Object.keys(CATS).map(k =>
     '<button type="button" class="chip" data-cat="' + k + '" aria-pressed="' + state.filters.has(k) + '" style="--c:var(--c-' + k + ')"><span class="sw"></span>' + CAT_SHORT[k] + ' <span class="n">' + (counts[k] || 0) + '</span></button>'
-  ).join('');
+  ).join('') + (tally.on ? '<button type="button" class="chip" data-tally="1" aria-pressed="' + tally.show + '" style="--c:var(--ink)"><span class="sw"></span>Tally <span class="n">' + tally.count + '</span></button>' : '');
 }
 
 function renderBanners(){
@@ -685,9 +712,12 @@ document.getElementById('btn-today').addEventListener('click', () => scrollToDat
 document.getElementById('filters').addEventListener('click', e => {
   const b = e.target.closest('.chip');
   if (!b) return;
-  const k = b.dataset.cat;
-  if (state.filters.has(k)) state.filters.delete(k); else state.filters.add(k);
-  lsSet('ft-filters', JSON.stringify(Array.from(state.filters)));
+  if (b.dataset.tally) tally.show = !tally.show;
+  else {
+    const k = b.dataset.cat;
+    if (state.filters.has(k)) state.filters.delete(k); else state.filters.add(k);
+    lsSet('ft-filters', JSON.stringify(Array.from(state.filters)));
+  }
   const mid = viewportMid();
   const anchorT = tOfY(mid - tl.getBoundingClientRect().top);
   setTimeout(() => {
@@ -705,6 +735,8 @@ document.getElementById('banners').addEventListener('click', e => {
 tl.addEventListener('click', e => {
   const more = e.target.closest('.more');
   if (more){ const y = e.clientY; setTimeout(() => setScale(ZOOM.month, y), 0); return; }
+  const tm = e.target.closest('.tmark');
+  if (tm){ setTimeout(() => openTallyList(+tm.dataset.from, +tm.dataset.to), 0); return; }
   const c = e.target.closest('.card, .tile');
   if (c) setTimeout(() => openDetail(c.dataset.id), 0);
 });
@@ -718,6 +750,7 @@ function openSheet(html, label){
   sheet.scrollTop = 0;
 }
 function closeSheet(){
+  tallyPad = null; tally.sheetOpen = false;
   sheet.hidden = true; scrim.hidden = true; sheet.innerHTML = '';
   document.body.style.overflow = '';
 }
@@ -874,6 +907,7 @@ sheet.addEventListener('click', e => {
   if (!b) return;
   const act = b.dataset.act;
   if (act === 'close') closeSheet();
+  else if (act === 'tp') tallyPress(b.dataset.d);
   else if (act === 'edit') setTimeout(() => openForm(b.dataset.id), 0);
   else if (act === 'use-photo-dates'){
     document.getElementById('f-start').value = b.dataset.from;
@@ -1119,6 +1153,184 @@ function importBackup(file){
 }
 
 /* ---------- start ---------- */
+/* ---------- Tally (secret filter, same PIN as Tally) ----------
+   Tally lives on the same origin (bengalebg23.github.io), so its PIN-wrapped vault
+   (localStorage 'tally.vault') is readable here. The PIN unwraps it, the newer of
+   Tally's local cache and its synced Firebase copy is decrypted, and sessions are
+   held in memory only: nothing decrypted is ever stored, and nothing of Tally's is
+   written except its shared wrong-PIN counter, so the lockout applies here too.
+   Long-press the title to unlock or lock. Locks again after 60 s in the background. */
+const TALLY = {vault:'tally.vault', blob:'tally.blob', fails:'tally.fails', iter:310000,
+  db:'https://tally-85dd6-default-rtdb.europe-west1.firebasedatabase.app'};
+const tally = {on:false, show:true, groups:{}, days:new Map(), count:0, hiddenAt:0};
+let tallyPad = null;
+const tEnc = new TextEncoder(), tDec = new TextDecoder();
+function tB64(s){ return Uint8Array.from(atob(s), ch => ch.charCodeAt(0)); }
+function tallyRec(){ try { const r = JSON.parse(lsGet(TALLY.vault)); return r && r.ct && r.iv && r.salt ? r : null; } catch(err){ return null; } }
+function tallyFails(){ try { return JSON.parse(lsGet(TALLY.fails)) || {n:0, until:0}; } catch(err){ return {n:0, until:0}; } }
+async function tallyDecrypt(key, o){ return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:tB64(o.iv)}, key, tB64(o.ct))); }
+async function tallyPinKey(pin, salt){
+  const base = await crypto.subtle.importKey('raw', tEnc.encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt:salt, iterations:TALLY.iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+}
+async function tallyFetch(vid){
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(TALLY.db + '/vaults/' + vid + '.json', {cache:'no-store', signal:ctl.signal});
+    return r.ok ? await r.json() : null;
+  } catch(err){ return null; } finally { clearTimeout(timer); }
+}
+async function tallyUnlock(pin){
+  const rec = tallyRec();
+  if (!rec) return 'Tally isn\'t set up on this phone';
+  const f = tallyFails(), now = Date.now();
+  if (f.until > now) return 'Too many tries — wait ' + Math.ceil((f.until - now) / 1000) + ' s';
+  let raw;
+  try { raw = await tallyDecrypt(await tallyPinKey(pin, tB64(rec.salt)), rec); }
+  catch(err){
+    f.n++; if (f.n >= 5) f.until = now + 30000 * Math.pow(2, f.n - 5);
+    lsSet(TALLY.fails, JSON.stringify(f));
+    return f.until > now ? 'Wrong PIN — locked for ' + Math.ceil((f.until - now) / 1000) + ' s' : 'Wrong PIN';
+  }
+  try { localStorage.removeItem(TALLY.fails); } catch(err){ /* ignore */ }
+  const vid = Array.from(raw.slice(0, 16), x => x.toString(16).padStart(2, '0')).join('');
+  const key = await crypto.subtle.importKey('raw', raw.slice(16), 'AES-GCM', false, ['decrypt']);
+  raw.fill(0);
+  let blob = null;
+  try { blob = JSON.parse(lsGet(TALLY.blob)); } catch(err){ blob = null; }
+  const remote = await tallyFetch(vid);
+  if (remote && remote.ct && (!blob || !blob.ct || (remote.v || 0) > (blob.v || 0))) blob = remote;
+  if (!blob || !blob.ct) return 'No Tally data found';
+  let d;
+  try { d = JSON.parse(tDec.decode(await tallyDecrypt(key, blob))); } catch(err){ return 'Tally data couldn\'t be read'; }
+  tallyLoad(d);
+  return null;
+}
+function tallyLoad(d){
+  const groups = {};
+  (Array.isArray(d.groups) ? d.groups : []).forEach(g => {
+    if (g && g.id) groups[g.id] = {name: String(g.name || ''), color: (window.CSS && CSS.supports('color', g.color || '')) ? g.color : '#8896A6'};
+  });
+  const days = new Map();
+  let count = 0;
+  (Array.isArray(d.sessions) ? d.sessions : []).forEach(x => {
+    if (!x || typeof x.t !== 'number') return;
+    const dt = new Date(x.t);
+    const k = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    if (!days.has(k)) days.set(k, []);
+    days.get(k).push({t:x.t, g:x.g, tags: Array.isArray(x.tags) ? x.tags.map(String) : [], note: String(x.note || '')});
+    count++;
+  });
+  days.forEach(a => a.sort((p, q) => p.t - q.t));
+  tally.groups = groups; tally.days = days; tally.count = count;
+  tally.on = true; tally.show = true;
+}
+function tallyLock(){
+  if (!tally.on) return;
+  if (tally.sheetOpen || tallyPad) closeSheet();
+  tally.on = false; tally.groups = {}; tally.days = new Map(); tally.count = 0; tally.sheetOpen = false;
+  render();
+}
+function tallyColour(id){ return (tally.groups[id] || {}).color || '#8896A6'; }
+function tallyDots(list, max){
+  const seen = [];
+  list.forEach(x => { const c = tallyColour(x.g); if (seen.indexOf(c) === -1) seen.push(c); });
+  return seen.slice(0, max).map(c => '<i style="--c:' + esc(c) + '"></i>').join('');
+}
+function renderTally(parts, mode, sc){
+  if (mode === 'year'){
+    const months = new Map();
+    tally.days.forEach((list, k) => {
+      const d = new Date(k), m = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+      if (!months.has(m)) months.set(m, []);
+      Array.prototype.push.apply(months.get(m), list);
+    });
+    months.forEach((list, m) => {
+      const d = new Date(m), next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+      const tally1 = {};
+      list.forEach(x => { tally1[x.g] = (tally1[x.g] || 0) + 1; });
+      const top = Object.keys(tally1).sort((a, b) => tally1[b] - tally1[a])[0];
+      const h = 18, y = (yOf(m) + yOf(next)) / 2 - h / 2;
+      parts.push('<button type="button" class="tmark y" data-from="' + m + '" data-to="' + (next - DAY) + '" style="--c:' + esc(tallyColour(top)) + ';top:' + y + 'px;height:' + h + 'px" aria-label="' + list.length + ' in ' + fmt(m, {month:'long', year:'numeric'}) + '">' + list.length + '</button>');
+    });
+    return;
+  }
+  tally.days.forEach((list, k) => {
+    if (mode === 'week'){
+      const h = Math.min(20, sc - 6);
+      parts.push('<button type="button" class="tmark w" data-from="' + k + '" data-to="' + k + '" style="top:' + (yOf(k) + (sc - h) / 2) + 'px;height:' + h + 'px" aria-label="' + list.length + ' on ' + fmt(k, {day:'numeric', month:'long'}) + '">' + tallyDots(list, 2) + list.length + '</button>');
+    } else {
+      const h = Math.max(4, Math.min(8, sc - 2));
+      parts.push('<button type="button" class="tmark" data-from="' + k + '" data-to="' + k + '" style="top:' + (yOf(k) + (sc - h) / 2) + 'px;height:' + h + 'px" aria-label="' + list.length + ' on ' + fmt(k, {day:'numeric', month:'long'}) + '">' + tallyDots(list, 3) + '</button>');
+    }
+  });
+}
+function openTallyList(from, to){
+  if (!tally.on) return;
+  const keys = Array.from(tally.days.keys()).filter(k => k >= from && k <= to).sort((a, b) => a - b);
+  const n = keys.reduce((s, k) => s + tally.days.get(k).length, 0);
+  const title = from === to ? fmt(from, {weekday:'long', day:'numeric', month:'long', year:'numeric'}) : fmt(from, {month:'long', year:'numeric'});
+  const body = keys.map(k => '<div class="tday"><h3>' + esc(fmt(k, {weekday:'short', day:'numeric', month:'short'})) + '</h3>' +
+    tally.days.get(k).map(x => {
+      const dt = new Date(x.t), g = tally.groups[x.g];
+      const extra = [x.tags.join(', '), x.note].filter(Boolean).join(' · ');
+      return '<div class="trow" style="--c:' + esc(tallyColour(x.g)) + '"><span class="tm">' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') + '</span><span class="tg">' + esc(g ? g.name : '—') + '</span>' + (extra ? '<span class="tx">' + esc(extra) + '</span>' : '') + '</div>';
+    }).join('') + '</div>').join('');
+  openSheet('<h2>' + esc(title) + '</h2><p class="hint">' + n + ' in Tally</p>' + body +
+    '<div class="btn-row"><button type="button" class="btn wide" data-act="close">Close</button></div>', 'Tally');
+  tally.sheetOpen = true;
+}
+function openTallyPad(){
+  const rec = tallyRec();
+  if (!rec) return;   // stays secret on phones without Tally
+  tallyPad = {pin:'', len: rec.n || 0, busy:false};
+  const keys = [1,2,3,4,5,6,7,8,9].map(d => '<button type="button" data-act="tp" data-d="' + d + '">' + d + '</button>').join('') +
+    '<button type="button" data-act="tp" data-d="back" aria-label="Delete">⌫</button><button type="button" data-act="tp" data-d="0">0</button>' +
+    (tallyPad.len ? '<span></span>' : '<button type="button" data-act="tp" data-d="ok" aria-label="Done">✓</button>');
+  openSheet('<h2>Tally</h2><p class="hint">Enter your Tally PIN</p><div class="tdots" id="tp-dots"></div><p class="err" id="tp-err" role="alert"></p><div class="tpad">' + keys + '</div>', 'Tally PIN');
+  tallyDraw();
+}
+function tallyDraw(){
+  const el = document.getElementById('tp-dots');
+  if (!el || !tallyPad) return;
+  const n = tallyPad.len || Math.max(4, tallyPad.pin.length);
+  el.innerHTML = Array.from({length:n}, (_, i) => '<i class="' + (i < tallyPad.pin.length ? 'f' : '') + '"></i>').join('');
+}
+async function tallyPress(k){
+  const pad = tallyPad;
+  if (!pad || pad.busy) return;
+  const err = document.getElementById('tp-err');
+  if (k === 'back') pad.pin = pad.pin.slice(0, -1);
+  else if (k !== 'ok' && pad.pin.length < 8) pad.pin += k;
+  tallyDraw();
+  const ready = pad.len ? pad.pin.length === pad.len : (k === 'ok' && pad.pin.length >= 4);
+  if (!ready) return;
+  pad.busy = true; if (err) err.textContent = '…';
+  const msg = await tallyUnlock(pad.pin);
+  if (tallyPad !== pad) return;
+  pad.busy = false; pad.pin = '';
+  if (msg){ if (err) err.textContent = msg; tallyDraw(); return; }
+  closeSheet();
+  render();
+  toast('Tally unlocked · ' + tally.count + ' sessions');
+}
+(function tallyGesture(){
+  const h1 = document.querySelector('.deck h1');
+  let timer = 0, sx = 0, sy = 0;
+  const cancel = () => { clearTimeout(timer); timer = 0; };
+  h1.addEventListener('pointerdown', e => {
+    sx = e.clientX; sy = e.clientY; cancel();
+    timer = setTimeout(() => { timer = 0; if (tally.on){ tallyLock(); toast('Tally locked'); } else openTallyPad(); }, 700);
+  });
+  h1.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) cancel(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => h1.addEventListener(t, cancel));
+  h1.addEventListener('contextmenu', e => e.preventDefault());
+})();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) tally.hiddenAt = Date.now();
+  else if (tally.on && Date.now() - tally.hiddenAt > 60000) tallyLock();
+});
+
 async function start(){
   try {
     state.events = await dbAll();

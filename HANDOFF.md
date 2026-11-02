@@ -14,6 +14,12 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - `BUNDLED` array in index.html: events added once from photos shared in chat (Reuben's 2nd birthday, Thomas Land, May 2022). Tracked by id in `ft-imported` so they don't come back after deletion.
 - `EXAMPLES`: seeded once on first run, flagged `example:true`, removable from the banner or ⋯ menu.
 
+## Tally (secret filter, v0.7.0)
+- Read-only. Tally is on the same origin, so Timeline reads Tally's `tally.vault` (PIN-wrapped key) and decrypts the newer of `tally.blob` and the Firebase copy (`vaults/<vid>.json`, REST GET).
+- Decrypted sessions live in memory only; never stored, never in backups. Only Tally's shared `tally.fails` counter is written, so the wrong-PIN lockout applies here too.
+- No vault on the phone → long-press does nothing, so the feature stays hidden.
+- Depends on Tally's crypto (PBKDF2 310k SHA-256, AES-GCM, 16-byte vid + 32-byte key). If Tally changes that, update both.
+
 ## Event shape
 `{id, title, cat: holiday|work|home|trip|family, start: YYYY-MM-DD, end, status: idea|planned|booked, notes, album, img, size: L|M|S, rank, updated}`
 
@@ -31,6 +37,7 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - v0.5.1 Tapping the big cover photo in an event opens its Amazon Photos album.
 - v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Didn't help on its own.
 - v0.6.0 App moved into `app/` so Chrome sees a new scope, sidestepping a ghost "already installed" entry for /Timeline/. Data carries over (same origin).
+- v0.7.0 Secret Tally filter: long-press the title, enter the Tally PIN, and Tally sessions show in a column on the right (count per month at Years, dots per day at Months/Weeks; tap for the list). Long-press again to lock; locks after 60 s in the background.
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).
