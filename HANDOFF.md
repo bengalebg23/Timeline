@@ -17,6 +17,7 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 ## Tally (secret filter, v0.7.0)
 - Read-only. Tally is on the same origin, so Timeline reads Tally's `tally.vault` (PIN-wrapped key) and decrypts the newer of `tally.blob` and the Firebase copy (`vaults/<vid>.json`, REST GET).
 - Decrypted sessions live in memory only; never stored, never in backups. Only Tally's shared `tally.fails` counter is written, so the wrong-PIN lockout applies here too.
+- Colours: Masturbate = group name matches /mast[eu]?rbat/i; PIV = any tag matching /\bpiv\b/i; everything else = Other.
 - No vault on the phone → long-press does nothing, so the feature stays hidden.
 - Depends on Tally's crypto (PBKDF2 310k SHA-256, AES-GCM, 16-byte vid + 32-byte key). If Tally changes that, update both.
 
@@ -38,6 +39,7 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Didn't help on its own.
 - v0.6.0 App moved into `app/` so Chrome sees a new scope, sidestepping a ghost "already installed" entry for /Timeline/. Data carries over (same origin).
 - v0.7.0 Secret Tally filter: long-press the title, enter the Tally PIN, and Tally sessions show in a column on the right (count per month at Years, dots per day at Months/Weeks; tap for the list). Long-press again to lock; locks after 60 s in the background.
+- v0.8.0 Tally view is now full width and replaces the events while it's on. Dots are coloured Masturbate / PIV / Other (legend in the filter row). Years: each month's sessions as a row of dots; Months/Weeks: dots placed across the width by time of day, with 06/12/18 guides.
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).

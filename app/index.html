@@ -192,14 +192,20 @@ html{color-scheme:light}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
-/* Tally (secret, PIN-locked): its own column on the right edge */
+/* Tally (secret, PIN-locked): full-width dot view, replaces the events while it's on */
 h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#timeline.has-tally .card{right:34px}
-.tmark{position:absolute;right:0;width:30px;display:flex;align-items:center;justify-content:center;gap:2px;padding:0;border:0;background:transparent;z-index:2}
-.tmark i{width:6px;height:100%;max-height:6px;border-radius:2px;background:var(--c);flex:none}
-.tmark.w,.tmark.y{border:1px solid var(--line);background:var(--surface);border-radius:999px;font-family:var(--f-mono);font-size:.62rem;color:var(--ink);gap:3px}
-.tmark.y{border-left:3px solid var(--c)}
-.tmark.w i{width:5px;height:5px}
+:root{--t-m:#2F6FE4;--t-p:#D6336C;--t-o:#8A96A3}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--t-m:#6E9BFF;--t-p:#F0659A;--t-o:#7D8996}}
+:root[data-theme="dark"]{--t-m:#6E9BFF;--t-p:#F0659A;--t-o:#7D8996}
+.tk-m{--c:var(--t-m)} .tk-p{--c:var(--t-p)} .tk-o{--c:var(--t-o)}
+.trowb{position:absolute;left:56px;right:0;display:flex;flex-wrap:wrap;align-content:flex-start;align-items:center;gap:var(--g);padding:0;border:0;background:transparent;z-index:2;overflow:hidden}
+.trowb i{width:var(--d);height:var(--d);border-radius:50%;background:var(--c);flex:none}
+.trowb .n{font-family:var(--f-mono);font-size:.62rem;color:var(--muted);margin-left:4px}
+.chip.tlg{border-color:transparent;background:transparent;padding-inline:4px}
+.trowb.tod{display:block}
+.trowb.tod i{position:absolute;top:50%;left:calc((100% - var(--d)) * var(--x));margin-top:calc(var(--d) / -2)}
+.tgrid{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--line);pointer-events:none}
+.thr{position:absolute;font-family:var(--f-mono);font-size:.6rem;color:var(--muted);transform:translateX(-50%);pointer-events:none}
 .tpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto;width:100%}
 .tpad button{height:58px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font-size:1.35rem;font-weight:600}
 .tpad span{display:block}
@@ -220,7 +226,7 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 <header class="deck">
   <div class="deck-in">
     <div class="top">
-      <h1>Family Timeline <span class="ver" id="ver">v0.7.0</span></h1>
+      <h1>Family Timeline <span class="ver" id="ver">v0.8.0</span></h1>
       <div class="top-btns"><button type="button" id="btn-prio" class="icon-btn" aria-label="Year view priorities"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="13" height="4" rx="1.5"/><rect x="3" y="16" width="8" height="4" rx="1.5"/></svg></button>
       <button type="button" id="btn-menu" class="icon-btn" aria-label="Backup and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>
     </div>
@@ -245,7 +251,7 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 <script>
 (function(){
 'use strict';
-const VERSION = '0.7.0';
+const VERSION = '0.8.0';
 const DAY = 86400000;
 const TOP = 28;
 const CATS = {
@@ -540,7 +546,8 @@ function render(){
   }
 
   // events: duration bars in lanes beside the axis
-  const list = visibleEvents();
+  const showTally = tally.on && tally.show;
+  const list = showTally ? [] : visibleEvents();
   const laneEnds = [];
   const laneOf = {};
   list.forEach(ev => {
@@ -555,8 +562,6 @@ function render(){
     parts.push('<div class="bar k-' + statusInfo(ev).kind + '" style="--c:var(--c-' + ev.cat + ');left:' + (62 + lane * 8) + 'px;top:' + dy + 'px;height:' + Math.max(yOf(en + DAY) - dy, 4) + 'px"></div>');
   });
 
-  const showTally = tally.on && tally.show;
-  tl.classList.toggle('has-tally', showTally);
   if (showTally) renderTally(parts, mode, sc);
 
   let bottom = 0;
@@ -565,7 +570,7 @@ function render(){
 
   const today = todayUTC();
   if (today >= state.t0 && today < state.t1) parts.push('<div class="today" style="top:' + yOf(today) + 'px"><span>Today</span></div>');
-  if (!list.length) parts.push('<p class="empty">' + (state.events.length ? 'Nothing to show. Turn a category back on above.' : 'Tap + Add to put your first event on the timeline.') + '</p>');
+  if (!list.length && !showTally) parts.push('<p class="empty">' + (state.events.length ? 'Nothing to show. Turn a category back on above.' : 'Tap + Add to put your first event on the timeline.') + '</p>');
 
   tl.innerHTML = parts.join('');
   tl.style.height = Math.max(yOf(state.t1) + TOP, bottom + 80) + 'px';
@@ -598,7 +603,7 @@ function layoutCards(list, laneOf, mode, parts){
 
 /* Years zoom: photo tiles placed by priority, staggered sideways, nudged up or down, then shrunk or dropped */
 function layoutTiles(list, parts){
-  const W = Math.max(160, tl.clientWidth - 100 - (tally.on && tally.show ? 34 : 0));
+  const W = Math.max(160, tl.clientWidth - 100);
   const dims = {
     L: Math.round(Math.min(150, W * 0.5)),
     M: Math.round(Math.min(96, W * 0.32)),
@@ -652,13 +657,20 @@ function renderFilters(){
   document.getElementById('filters').innerHTML = Object.keys(CATS).map(k =>
     '<button type="button" class="chip" data-cat="' + k + '" aria-pressed="' + state.filters.has(k) + '" style="--c:var(--c-' + k + ')"><span class="sw"></span>' + CAT_SHORT[k] + ' <span class="n">' + (counts[k] || 0) + '</span></button>'
   ).join('') + (tally.on ? '<button type="button" class="chip" data-tally="1" aria-pressed="' + tally.show + '" style="--c:var(--ink)"><span class="sw"></span>Tally <span class="n">' + tally.count + '</span></button>' : '');
+  if (tally.on && tally.show){
+    const c = {m:0, p:0, o:0};
+    tally.days.forEach(l => l.forEach(x => { c[x.k]++; }));
+    document.getElementById('filters').innerHTML = '<button type="button" class="chip" data-tally="1" aria-pressed="true" style="--c:var(--ink)"><span class="sw"></span>Tally on</button>' +
+      '<span class="chip tlg tk-m"><span class="sw"></span>Masturbate <span class="n">' + c.m + '</span></span><span class="chip tlg tk-p"><span class="sw"></span>PIV <span class="n">' + c.p + '</span></span>' +
+      (c.o ? '<span class="chip tlg tk-o"><span class="sw"></span>Other <span class="n">' + c.o + '</span></span>' : '');
+  }
 }
 
 function renderBanners(){
   const out = [];
   if (!storageOK) out.push('<div class="banner warn">Saving isn\'t available in this browser, so changes will be lost when you close it.</div>');
   const ex = state.events.filter(ev => ev.example).length;
-  if (ex) out.push('<div class="banner"><span>Showing ' + ex + ' example events so you can see how it works.</span><button type="button" data-act="clear-examples">Remove examples</button></div>');
+  if (ex && !(tally.on && tally.show)) out.push('<div class="banner"><span>Showing ' + ex + ' example events so you can see how it works.</span><button type="button" data-act="clear-examples">Remove examples</button></div>');
   document.getElementById('banners').innerHTML = out.join('');
 }
 
@@ -735,7 +747,7 @@ document.getElementById('banners').addEventListener('click', e => {
 tl.addEventListener('click', e => {
   const more = e.target.closest('.more');
   if (more){ const y = e.clientY; setTimeout(() => setScale(ZOOM.month, y), 0); return; }
-  const tm = e.target.closest('.tmark');
+  const tm = e.target.closest('.trowb');
   if (tm){ setTimeout(() => openTallyList(+tm.dataset.from, +tm.dataset.to), 0); return; }
   const c = e.target.closest('.card, .tile');
   if (c) setTimeout(() => openDetail(c.dataset.id), 0);
@@ -1218,7 +1230,10 @@ function tallyLoad(d){
     const dt = new Date(x.t);
     const k = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate());
     if (!days.has(k)) days.set(k, []);
-    days.get(k).push({t:x.t, g:x.g, tags: Array.isArray(x.tags) ? x.tags.map(String) : [], note: String(x.note || '')});
+    const gn = (groups[x.g] || {}).name || '';
+    const tg = Array.isArray(x.tags) ? x.tags.map(String) : [];
+    const kind = /mast[eu]?rbat/i.test(gn) ? 'm' : tg.some(t => /\bpiv\b/i.test(t)) ? 'p' : 'o';
+    days.get(k).push({k:kind, t:x.t, g:x.g, tags: Array.isArray(x.tags) ? x.tags.map(String) : [], note: String(x.note || '')});
     count++;
   });
   days.forEach(a => a.sort((p, q) => p.t - q.t));
@@ -1231,12 +1246,12 @@ function tallyLock(){
   tally.on = false; tally.groups = {}; tally.days = new Map(); tally.count = 0; tally.sheetOpen = false;
   render();
 }
-function tallyColour(id){ return (tally.groups[id] || {}).color || '#8896A6'; }
-function tallyDots(list, max){
-  const seen = [];
-  list.forEach(x => { const c = tallyColour(x.g); if (seen.indexOf(c) === -1) seen.push(c); });
-  return seen.slice(0, max).map(c => '<i style="--c:' + esc(c) + '"></i>').join('');
+const TALLY_ORDER = {m:0, p:1, o:2};
+function tallyDotsHTML(list){
+  return list.slice().sort((a, b) => TALLY_ORDER[a.k] - TALLY_ORDER[b.k] || a.t - b.t).map(x => '<i class="tk-' + x.k + '"></i>').join('');
 }
+/* Full width: Years = each month's sessions as a grid of dots in its band;
+   Months/Weeks = one row of dots per day. Tap a row or block for the list. */
 function renderTally(parts, mode, sc){
   if (mode === 'year'){
     const months = new Map();
@@ -1247,22 +1262,23 @@ function renderTally(parts, mode, sc){
     });
     months.forEach((list, m) => {
       const d = new Date(m), next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
-      const tally1 = {};
-      list.forEach(x => { tally1[x.g] = (tally1[x.g] || 0) + 1; });
-      const top = Object.keys(tally1).sort((a, b) => tally1[b] - tally1[a])[0];
-      const h = 18, y = (yOf(m) + yOf(next)) / 2 - h / 2;
-      parts.push('<button type="button" class="tmark y" data-from="' + m + '" data-to="' + (next - DAY) + '" style="--c:' + esc(tallyColour(top)) + ';top:' + y + 'px;height:' + h + 'px" aria-label="' + list.length + ' in ' + fmt(m, {month:'long', year:'numeric'}) + '">' + list.length + '</button>');
+      const y0 = yOf(m) + 20, h = Math.max(10, yOf(next) - yOf(m) - 24);
+      const dot = sc < 2.5 ? 6 : 8;
+      parts.push('<button type="button" class="trowb" data-from="' + m + '" data-to="' + (next - DAY) + '" style="--d:' + dot + 'px;--g:3px;top:' + y0 + 'px;height:' + h + 'px" aria-label="' + list.length + ' in ' + fmt(m, {month:'long', year:'numeric'}) + '">' + tallyDotsHTML(list) + '</button>');
     });
     return;
   }
+  const dot = Math.max(4, Math.min(mode === 'week' ? 14 : 8, sc - 1));
+  const xAt = f => 'calc(56px + (100% - 56px - ' + dot + 'px) * ' + f + ' + ' + (dot / 2) + 'px)';
+  [6, 12, 18].forEach(h => parts.push('<div class="tgrid" style="left:' + xAt(h / 24) + '"></div>'));
+  const y0 = new Date(state.t0).getUTCFullYear(), y1 = new Date(state.t1).getUTCFullYear();
+  for (let yr = y0; yr < y1; yr++) for (let m = 0; m < 12; m++){
+    const top = yOf(Date.UTC(yr, m, 1)) + 4;
+    [6, 12, 18].forEach(h => parts.push('<span class="thr" style="top:' + top + 'px;left:' + xAt(h / 24) + '">' + String(h).padStart(2, '0') + '</span>'));
+  }
   tally.days.forEach((list, k) => {
-    if (mode === 'week'){
-      const h = Math.min(20, sc - 6);
-      parts.push('<button type="button" class="tmark w" data-from="' + k + '" data-to="' + k + '" style="top:' + (yOf(k) + (sc - h) / 2) + 'px;height:' + h + 'px" aria-label="' + list.length + ' on ' + fmt(k, {day:'numeric', month:'long'}) + '">' + tallyDots(list, 2) + list.length + '</button>');
-    } else {
-      const h = Math.max(4, Math.min(8, sc - 2));
-      parts.push('<button type="button" class="tmark" data-from="' + k + '" data-to="' + k + '" style="top:' + (yOf(k) + (sc - h) / 2) + 'px;height:' + h + 'px" aria-label="' + list.length + ' on ' + fmt(k, {day:'numeric', month:'long'}) + '">' + tallyDots(list, 3) + '</button>');
-    }
+    const dots = list.map(x => { const d = new Date(x.t); return '<i class="tk-' + x.k + '" style="--x:' + ((d.getHours() * 60 + d.getMinutes()) / 1440).toFixed(4) + '"></i>'; }).join('');
+    parts.push('<button type="button" class="trowb tod" data-from="' + k + '" data-to="' + k + '" style="--d:' + dot + 'px;top:' + yOf(k) + 'px;height:' + sc + 'px" aria-label="' + list.length + ' on ' + fmt(k, {day:'numeric', month:'long'}) + '">' + dots + '</button>');
   });
 }
 function openTallyList(from, to){
@@ -1274,7 +1290,7 @@ function openTallyList(from, to){
     tally.days.get(k).map(x => {
       const dt = new Date(x.t), g = tally.groups[x.g];
       const extra = [x.tags.join(', '), x.note].filter(Boolean).join(' · ');
-      return '<div class="trow" style="--c:' + esc(tallyColour(x.g)) + '"><span class="tm">' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') + '</span><span class="tg">' + esc(g ? g.name : '—') + '</span>' + (extra ? '<span class="tx">' + esc(extra) + '</span>' : '') + '</div>';
+      return '<div class="trow tk-' + x.k + '"><span class="tm">' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') + '</span><span class="tg">' + esc(g ? g.name : '—') + '</span>' + (extra ? '<span class="tx">' + esc(extra) + '</span>' : '') + '</div>';
     }).join('') + '</div>').join('');
   openSheet('<h2>' + esc(title) + '</h2><p class="hint">' + n + ' in Tally</p>' + body +
     '<div class="btn-row"><button type="button" class="btn wide" data-act="close">Close</button></div>', 'Tally');
