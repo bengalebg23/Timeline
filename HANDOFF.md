@@ -55,10 +55,11 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - v0.8.0 Tally view is now full width and replaces the events while it's on. Dots are coloured Masturbate / PIV / Other (legend in the filter row). Years: each month's sessions as a row of dots; Months/Weeks: dots placed across the width by time of day, with 06/12/18 guides.
 - v0.9.0 Tally tag picker (Tags… chip): choose up to 6 tags, each with its own colour; defaults to PIV vs M-Orgasm. Selection is saved encrypted with the Tally key.
 - v0.9.1 "Install app" button (beforeinstallprompt); Chrome's ⋮ menu install has been failing on Ben's Pixel.
+- v0.10.1 Sync switched on (project timeline-7b9ae); Ben's login only so far.
 - v0.10.0 Firebase cloud sync with sign-in (dormant until FB_CONFIG is filled in). Events and photos sync between phones; daily cloud backups.
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).
 - Confirm exact dates for the May 2022 events and add the Amazon album link.
-- Sync: fill in FB_CONFIG and the two UIDs in database.rules.json once the Timeline Firebase project exists, then test on both phones.
+- Sync: Emily's login not created yet. Add her user, replace EMILY_UID in database.rules.json and paste the rules into the console again.
 - Data from the Claude-app version doesn't carry over (different origin). Use Copy events / backup to move it.

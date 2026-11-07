@@ -3,8 +3,8 @@
     ".read": false,
     ".write": false,
     "timeline": {
-      ".read": "auth != null && (auth.uid === 'BEN_UID' || auth.uid === 'EMILY_UID')",
-      ".write": "auth != null && (auth.uid === 'BEN_UID' || auth.uid === 'EMILY_UID')"
+      ".read": "auth != null && (auth.uid === 'dVeagwPRuwPJI8Mgoci30x4HLLB3' || auth.uid === 'EMILY_UID')",
+      ".write": "auth != null && (auth.uid === 'dVeagwPRuwPJI8Mgoci30x4HLLB3' || auth.uid === 'EMILY_UID')"
     }
   }
 }
