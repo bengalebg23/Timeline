@@ -1,0 +1,10 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "timeline": {
+      ".read": "auth != null && (auth.uid === 'BEN_UID' || auth.uid === 'EMILY_UID')",
+      ".write": "auth != null && (auth.uid === 'BEN_UID' || auth.uid === 'EMILY_UID')"
+    }
+  }
+}

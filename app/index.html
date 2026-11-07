@@ -51,6 +51,14 @@ h1{font-family:var(--f-display);font-weight:800;font-size:1.45rem;letter-spacing
 .ver{font-family:var(--f-mono);font-size:.68rem;font-weight:500;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px;vertical-align:middle;letter-spacing:0}
 .icon-btn{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
 .icon-btn svg{width:20px;height:20px;fill:currentColor}
+#btn-menu{position:relative}
+#btn-menu .sync-dot{position:absolute;top:5px;right:5px}
+.sync-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.sync-dot.ok{background:#2E9E5B}
+.sync-dot.busy{background:#D69A1E}
+.sync-dot.err{background:#D6453D}
+.sync-dot.off{background:transparent;border:1.5px solid var(--muted)}
+.sync-line{display:flex;align-items:center;gap:8px;margin:0;font-size:.9rem}
 .controls{display:flex;gap:8px;align-items:center}
 .seg{display:flex;flex:1;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
 .seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 4px;font-weight:600;font-size:.88rem;color:var(--muted)}
@@ -167,7 +175,7 @@ a.det-cover{display:block;text-decoration:none}
 .url{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);word-break:break-all}
 .field{display:grid;gap:5px}
 .field > label,.legend{font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.field input[type=text],.field input[type=url],.field input[type=date],.field textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.field input[type=text],.field input[type=url],.field input[type=email],.field input[type=password],.field input[type=date],.field textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .field textarea{min-height:72px;resize:vertical}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .two > *{min-width:0}
@@ -234,9 +242,9 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 <header class="deck">
   <div class="deck-in">
     <div class="top">
-      <h1>Family Timeline <span class="ver" id="ver">v0.9.1</span></h1>
+      <h1>Family Timeline <span class="ver" id="ver">v0.10.0</span></h1>
       <div class="top-btns"><button type="button" id="btn-prio" class="icon-btn" aria-label="Year view priorities"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="13" height="4" rx="1.5"/><rect x="3" y="16" width="8" height="4" rx="1.5"/></svg></button>
-      <button type="button" id="btn-menu" class="icon-btn" aria-label="Backup and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>
+      <button type="button" id="btn-menu" class="icon-btn" aria-label="Backup, sync and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span class="sync-dot" id="sync-dot" hidden></span></button></div>
     </div>
     <div class="controls">
       <div class="seg" role="group" aria-label="Zoom level">
@@ -259,7 +267,7 @@ h1{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 <script>
 (function(){
 'use strict';
-const VERSION = '0.9.1';
+const VERSION = '0.10.0';
 const DAY = 86400000;
 const TOP = 28;
 const CATS = {
@@ -362,9 +370,16 @@ async function dbWrite(fn){
     tx.onabort = () => rej(tx.error || new Error('Save was cancelled'));
   });
 }
-const dbPut = ev => dbWrite(st => st.put(ev));
-const dbPutMany = list => dbWrite(st => { list.forEach(item => st.put(item)); });
-const dbDel = id => dbWrite(st => st.delete(id));
+// raw* write this phone only; dbPut/dbPutMany/dbDel also queue the change for cloud sync
+const rawPutMany = list => list.length ? dbWrite(st => { list.forEach(item => st.put(item)); }) : Promise.resolve();
+const rawDelMany = ids => ids.length ? dbWrite(st => { ids.forEach(i => st.delete(i)); }) : Promise.resolve();
+const dbPutMany = list => {
+  const now = Date.now();
+  list.forEach(ev => { ev.updated = now; });
+  return rawPutMany(list).then(() => syncQueue(list.map(ev => ev.id)));
+};
+const dbPut = ev => dbPutMany([ev]);
+const dbDel = id => rawDelMany([id]).then(() => syncQueue([id], true));
 
 /* ---------- images: stored as compressed JPEG data URLs, shown via blob URLs ---------- */
 const imgCache = new Map();
@@ -775,6 +790,7 @@ function closeSheet(){
   tallyPad = null; tally.sheetOpen = false;
   sheet.hidden = true; scrim.hidden = true; sheet.innerHTML = '';
   document.body.style.overflow = '';
+  if (sync.pendingRender){ sync.pendingRender = false; setTimeout(render, 0); }
 }
 scrim.addEventListener('click', closeSheet);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) closeSheet(); });
@@ -952,6 +968,9 @@ sheet.addEventListener('click', e => {
   else if (act === 'export') exportBackup();
   else if (act === 'copy') copyEvents();
   else if (act === 'clear-examples') clearExamples();
+  else if (act === 'sync-in') syncSignIn();
+  else if (act === 'sync-out') syncSignOut();
+  else if (act === 'sync-retry'){ sync.error = ''; syncStatus(); syncFlush(); }
 });
 
 sheet.addEventListener('submit', e => {
@@ -1102,7 +1121,7 @@ function openMenu(){
   const ex = state.events.some(ev => ev.example);
   openSheet(
     '<h2>Backup &amp; settings</h2>' +
-    '<p class="hint">Your timeline is saved in this browser on this phone. Download a backup now and then, and before moving the app to GitHub.</p>' +
+    '<div id="sync-box"></div>' +
     '<div class="btn-row"><button type="button" class="btn primary wide" data-act="export">Download backup</button></div>' +
     '<p class="hint">Includes photos. If nothing downloads here, use Copy events instead.</p>' +
     '<div class="btn-row"><button type="button" class="btn wide" data-act="copy">Copy events (no photos)</button></div>' +
@@ -1113,6 +1132,8 @@ function openMenu(){
     '<div class="btn-row"><button type="button" class="btn wide" data-act="close">Close</button></div>',
     'Backup and settings'
   );
+  const box = document.getElementById('sync-box');
+  if (box) box.innerHTML = syncBoxInner();
 }
 document.getElementById('btn-menu').addEventListener('click', openMenu);
 
@@ -1173,6 +1194,250 @@ function importBackup(file){
   };
   reader.onerror = () => toast('That file could not be read.');
   reader.readAsText(file);
+}
+
+/* ---------- cloud sync (Firebase Realtime Database, signed-in users only) ----------
+   IndexedDB stays the working copy, so the app still opens and saves offline.
+   Cloud layout under /timeline:
+     events/<id>        event without its photo, plus imgHash ('' = no photo).
+                        Deleted events become {deleted:true, updated} so an
+                        offline phone can't bring them back.
+     photos/<hash>      the compressed photo (data URL), stored once per photo
+                        and fetched once per phone.
+     backups/daily/<d>  copy of events/ once a day (photos are never deleted).
+   Merge rule: newest `updated` wins, per event. Nothing is wiped on first sync:
+   events only on this phone are uploaded, events only in the cloud come down.
+   Example events never sync. Bundled events are stamped updated:0, so a
+   delete or edit made on another phone wins over them. */
+const FB_CONFIG = null; // paste the Timeline project's firebaseConfig here
+const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.0/';
+const SYNC_DIRTY = 'ft-sync-dirty';   // {id: time} changed here, not yet in the cloud (negative time = deleted)
+const SYNC_PHOTOS = 'ft-sync-photos'; // photo hashes known to be in the cloud
+const SYNC_BACKUP_DAY = 'ft-sync-backup-day';
+const sync = {A:null, D:null, auth:null, db:null, user:null, online:false, ready:false,
+  starting:false, error:'', unsub:null, pendingRender:false, chain:Promise.resolve(), flushing:false, again:false};
+
+function dirtyGet(){ try { return JSON.parse(lsGet(SYNC_DIRTY) || '{}') || {}; } catch(e){ return {}; } }
+function dirtySet(o){ lsSet(SYNC_DIRTY, JSON.stringify(o)); }
+function photosKnown(){ try { return new Set(JSON.parse(lsGet(SYNC_PHOTOS) || '[]')); } catch(e){ return new Set(); } }
+function photosKnownSave(s){ lsSet(SYNC_PHOTOS, JSON.stringify(Array.from(s))); }
+function fbRef(path){ return sync.D.ref(sync.db, 'timeline/' + path); }
+async function photoHash(img){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(img));
+  return Array.from(new Uint8Array(buf).slice(0, 12), b => b.toString(16).padStart(2, '0')).join('');
+}
+function cloudCopy(ev, hash){
+  const c = {};
+  Object.keys(ev).forEach(k => { if (k !== 'img' && k !== 'example' && ev[k] !== undefined) c[k] = ev[k]; });
+  c.imgHash = hash || '';
+  c.updated = ev.updated || 0;
+  return c;
+}
+function syncFail(err){
+  const msg = String((err && (err.code || err.message)) || err || 'unknown error');
+  if (msg !== sync.error) toast('Cloud sync problem: ' + msg);
+  sync.error = msg;
+  syncStatus();
+}
+
+// Called after every local save or delete (via dbPutMany / dbDel).
+function syncQueue(ids, deleted){
+  if (!FB_CONFIG) return;
+  const d = dirtyGet(), now = Date.now();
+  ids.forEach(id => { const ev = findEvent(id); if (deleted || !ev || !ev.example) d[id] = deleted ? -now : now; });
+  dirtySet(d);
+  // callers update state.events right after the save resolves; upload after that
+  setTimeout(syncFlush, 0);
+}
+
+async function syncFlush(){
+  if (!sync.ready || !sync.online || !sync.user){ syncStatus(); return; }
+  if (sync.flushing){ sync.again = true; return; }
+  sync.flushing = true; syncStatus();
+  try {
+    const d = dirtyGet();
+    const known = photosKnown();
+    for (const id of Object.keys(d)){
+      const ev = d[id] < 0 ? null : findEvent(id);
+      let val = null;
+      if (!ev) val = {deleted:true, updated:Math.abs(d[id])};
+      else if (!ev.example){
+        let h = '';
+        if (ev.img){
+          h = ev.imgHash || await photoHash(ev.img);
+          if (!known.has(h)){ await sync.D.set(fbRef('photos/' + h), ev.img); known.add(h); photosKnownSave(known); }
+          if (ev.imgHash !== h){ ev.imgHash = h; await rawPutMany([ev]); }
+        }
+        val = cloudCopy(ev, h);
+      }
+      if (val) await sync.D.set(fbRef('events/' + id), val);
+      const cur = dirtyGet();
+      if (cur[id] === d[id]){ delete cur[id]; dirtySet(cur); }
+    }
+    sync.error = '';
+  } catch(err){ syncFail(err); }
+  sync.flushing = false;
+  syncStatus();
+  if (sync.again){ sync.again = false; syncFlush(); }
+}
+
+async function syncOnRemote(remote){
+  remote = remote && typeof remote === 'object' ? remote : {};
+  const d = dirtyGet();
+  const known = photosKnown();
+  const take = [], dels = [], push = [];
+  Object.keys(remote).forEach(id => {
+    const r = remote[id];
+    if (!r || typeof r !== 'object') return;
+    const loc = findEvent(id);
+    const rt = r.updated || 0;
+    const lt = d[id] < 0 ? -d[id] : loc ? (loc.updated || 0) : Math.abs(d[id] || 0);
+    if (d[id] && rt <= lt) return; // our pending change is newer; flush sends it
+    if (d[id]){ const cur = dirtyGet(); delete cur[id]; dirtySet(cur); }    // theirs is newer: drop ours
+    if (r.deleted){
+      if (loc && !loc.example){ if (lt <= rt) dels.push(id); else push.push(id); }
+      return;
+    }
+    if (loc && lt > rt){ push.push(id); return; }
+    if (loc && lt === rt) return;
+    if (!r.title || !/^\d{4}-\d{2}-\d{2}$/.test(r.start || '')) return;
+    take.push({r:r, loc:loc});
+  });
+  // events only on this phone go up (never thrown away)
+  state.events.forEach(ev => { if (!ev.example && !remote[ev.id] && !d[ev.id]) push.push(ev.id); });
+
+  const fresh = await Promise.all(take.map(async x => {
+    const ev = Object.assign({}, x.r);
+    delete ev.deleted;
+    ev.img = '';
+    if (x.r.imgHash){
+      if (x.loc && x.loc.img && x.loc.imgHash === x.r.imgHash) ev.img = x.loc.img;
+      else {
+        const s = await sync.D.get(fbRef('photos/' + x.r.imgHash));
+        ev.img = typeof s.val() === 'string' ? s.val() : '';
+        if (ev.img) known.add(x.r.imgHash);
+      }
+    }
+    return ev;
+  }));
+  photosKnownSave(known);
+  if (fresh.length || dels.length){
+    await rawPutMany(fresh);
+    await rawDelMany(dels);
+    const byId = new Map(state.events.map(ev => [ev.id, ev]));
+    fresh.forEach(ev => byId.set(ev.id, ev));
+    dels.forEach(id => { byId.delete(id); imgCache.delete(id); });
+    state.events = Array.from(byId.values());
+    syncRender();
+  }
+  if (push.length){
+    const cur = dirtyGet(), now = Date.now();
+    push.forEach(id => { if (!cur[id]) cur[id] = now; });
+    dirtySet(cur);
+  }
+}
+
+function syncRender(){
+  if (sheet.hidden) setTimeout(render, 0);
+  else sync.pendingRender = true;   // drawn when the open sheet closes
+}
+
+function dailyBackup(remote){
+  const day = isoOf(todayUTC());
+  if (lsGet(SYNC_BACKUP_DAY) === day || !remote) return;
+  const r = fbRef('backups/daily/' + day);
+  sync.D.get(r).then(s => s.exists() ? null : sync.D.set(r, {t:Date.now(), events:remote}))
+    .then(() => lsSet(SYNC_BACKUP_DAY, day)).catch(() => {});
+}
+
+async function syncStart(){
+  if (!FB_CONFIG || sync.db || sync.starting) return;
+  sync.starting = true; syncStatus();
+  try {
+    const mods = await Promise.all([import(FB_SDK + 'firebase-app.js'), import(FB_SDK + 'firebase-auth.js'), import(FB_SDK + 'firebase-database.js')]);
+    const app = mods[0].initializeApp(FB_CONFIG, 'timeline');
+    sync.A = mods[1]; sync.D = mods[2];
+    sync.auth = sync.A.getAuth(app);
+    sync.db = sync.D.getDatabase(app);
+  } catch(err){ sync.starting = false; syncStatus(); return; } // offline at launch: retried on 'online'
+  sync.starting = false;
+  sync.D.onValue(sync.D.ref(sync.db, '.info/connected'), s => {
+    sync.online = !!s.val(); syncStatus();
+    if (sync.online) syncFlush();
+  });
+  sync.A.onAuthStateChanged(sync.auth, user => {
+    if (sync.unsub){ sync.unsub(); sync.unsub = null; }
+    sync.user = user; sync.ready = false; sync.error = '';
+    if (user){
+      sync.unsub = sync.D.onValue(fbRef('events'), snap => {
+        const val = snap.val();
+        sync.chain = sync.chain.then(() => syncOnRemote(val)).then(() => {
+          if (!sync.ready){ sync.ready = true; dailyBackup(val); }
+          syncFlush();
+        }).catch(syncFail);
+      }, syncFail);
+    }
+    syncStatus();
+  });
+}
+window.addEventListener('online', syncStart);
+
+/* status: dot on the ⋯ button, and the Cloud sync box in the menu */
+function syncMode(){ return !FB_CONFIG ? 'none' : sync.user ? 'in' : 'out'; }
+function syncLabel(){
+  if (sync.error) return {txt:'Problem: ' + sync.error + '. Tap Retry, or check the Firebase rules.', cls:'err'};
+  if (!sync.db) return {txt: sync.starting ? 'Connecting…' : 'Offline. Changes are kept on this phone.', cls:'busy'};
+  if (!sync.online) return {txt:'Offline. Changes are kept on this phone and upload when you\'re back online.', cls:'busy'};
+  if (!sync.ready) return {txt:'Syncing…', cls:'busy'};
+  const n = Object.keys(dirtyGet()).length;
+  if (n || sync.flushing) return {txt:'Saving' + (n ? ' ' + n + ' change' + (n > 1 ? 's' : '') : '') + '…', cls:'busy'};
+  return {txt:'Synced', cls:'ok'};
+}
+function syncStatus(){
+  const dot = document.getElementById('sync-dot');
+  const mode = syncMode();
+  if (dot){
+    dot.hidden = mode === 'none';
+    dot.className = 'sync-dot ' + (mode === 'out' ? 'off' : syncLabel().cls);
+  }
+  const box = document.getElementById('sync-box');
+  if (box && (box.dataset.mode !== mode || mode === 'in')) box.innerHTML = syncBoxInner();
+}
+function syncBoxInner(){
+  const mode = syncMode();
+  const box = document.getElementById('sync-box');
+  if (box) box.dataset.mode = mode;
+  if (mode === 'none') return '<p class="hint">Your timeline is saved in this browser on this phone. Download a backup now and then.</p>';
+  if (mode === 'out') return '<div class="field"><span class="legend">Cloud sync</span>' +
+    '<p class="hint">Sign in to share the timeline between phones. Until then it\'s saved on this phone only.</p>' +
+    '<input type="email" id="sync-email" placeholder="Email" autocomplete="username" inputmode="email">' +
+    '<input type="password" id="sync-pw" placeholder="Password" autocomplete="current-password">' +
+    '<p class="err" id="sync-err" hidden></p>' +
+    '<div class="btn-row"><button type="button" class="btn primary wide" data-act="sync-in">Sign in</button></div></div>';
+  const s = syncLabel();
+  return '<div class="field"><span class="legend">Cloud sync</span>' +
+    '<p class="sync-line"><span class="sync-dot ' + s.cls + '"></span>' + esc(s.txt) + '</p>' +
+    '<p class="hint">Signed in as ' + esc(sync.user.email || '') + '. Events and photos sync between phones.</p>' +
+    '<div class="btn-row">' + (sync.error ? '<button type="button" class="btn" data-act="sync-retry">Retry</button>' : '') +
+    '<button type="button" class="btn" data-act="sync-out">Sign out</button></div></div>';
+}
+async function syncSignIn(){
+  const email = (document.getElementById('sync-email') || {}).value || '';
+  const pw = (document.getElementById('sync-pw') || {}).value || '';
+  const err = document.getElementById('sync-err');
+  const show = m => { if (err){ err.textContent = m; err.hidden = !m; } };
+  if (!email.trim() || !pw) return show('Enter the email and password.');
+  if (!sync.auth){ await syncStart(); if (!sync.auth) return show('Can\'t reach Firebase. Check you\'re online.'); }
+  show('');
+  try { await sync.A.signInWithEmailAndPassword(sync.auth, email.trim(), pw); toast('Signed in. Syncing…'); }
+  catch(e){
+    const c = (e && e.code) || '';
+    show(/invalid-credential|wrong-password|user-not-found|invalid-email/.test(c) ? 'That email or password isn\'t right.'
+      : /network/.test(c) ? 'Can\'t reach Firebase. Check you\'re online.' : 'Sign-in failed: ' + (c || e));
+  }
+}
+async function syncSignOut(){
+  try { await sync.A.signOut(sync.auth); toast('Signed out. The timeline stays on this phone.'); } catch(e){ syncFail(e); }
 }
 
 /* ---------- start ---------- */
@@ -1429,21 +1694,21 @@ async function start(){
   if (!state.events.length && lsGet('ft-seeded') !== '1'){
     const seeded = EXAMPLES.map((x, i) => Object.assign({id:'ex' + i, end:'', status:'planned', album:'', img:'', example:true}, x));
     state.events = seeded;
-    try { await dbPutMany(seeded); lsSet('ft-seeded', '1'); } catch(err){ /* shown in memory only */ }
+    try { await rawPutMany(seeded); lsSet('ft-seeded', '1'); } catch(err){ /* shown in memory only */ }
   }
   let imported = [];
   try { imported = JSON.parse(lsGet('ft-imported') || '[]'); } catch(err){ imported = []; }
   const have = new Set(state.events.map(ev => ev.id));
-  const fresh = BUNDLED.filter(b => !have.has(b.id) && imported.indexOf(b.id) === -1).map(b => Object.assign({updated: Date.now()}, b));
+  const fresh = BUNDLED.filter(b => !have.has(b.id) && imported.indexOf(b.id) === -1).map(b => Object.assign({updated: 0}, b));
   if (fresh.length){
     state.events = state.events.concat(fresh);
-    try { await dbPutMany(fresh); lsSet('ft-imported', JSON.stringify(imported.concat(fresh.map(b => b.id)))); } catch(err){ /* shown in memory only */ }
+    try { await rawPutMany(fresh); lsSet('ft-imported', JSON.stringify(imported.concat(fresh.map(b => b.id)))); } catch(err){ /* shown in memory only */ }
   }
   render();
   const rect = tl.getBoundingClientRect();
   window.scrollTo(0, rect.top + window.scrollY + yOf(todayUTC()) - viewportMid());
 }
-start();
+start().then(() => { syncStatus(); syncStart(); });
 
 if ('serviceWorker' in navigator && /github\.io$/.test(location.hostname)){
   navigator.serviceWorker.register('sw.js').catch(() => {});

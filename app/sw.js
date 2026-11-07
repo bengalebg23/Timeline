@@ -1,5 +1,5 @@
 // Family Timeline service worker
-const CACHE = 'timeline-v0.9.1';
+const CACHE = 'timeline-v0.10.0';
 const CORE = ['./', './index.html', './manifest.json?v=3', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -17,6 +17,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  // Firebase data, sign-in and Tally's vault: always live, never cached
+  if (/(firebaseio\.com|firebasedatabase\.app|googleapis\.com)$/.test(new URL(req.url).hostname)) return;
   if (req.mode === 'navigate'){
     e.respondWith(fetch(req).then(res => {
       const copy = res.clone();
