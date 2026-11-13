@@ -11,7 +11,7 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - Photos: compressed to max 1200px JPEG (q0.8) and stored as data URLs inside each event.
 - Photo dates: read from EXIF DateTimeOriginal, falling back to Pixel file names (`PXL_YYYYMMDD_…`).
 - Amazon Photos: link only (opens the album). Amazon has no usable public API, so nothing is read from the link.
-- `BUNDLED` array in index.html: events added once from photos shared in chat (Reuben's 2nd birthday, Thomas Land, May 2022). Tracked by id in `ft-imported` so they don't come back after deletion.
+- `BUNDLED` array in index.html is now empty. Family photos must never be committed: the repo is public.
 - `EXAMPLES`: seeded once on first run, flagged `example:true`, removable from the banner or ⋯ menu.
 
 ## Cloud sync (v0.10.0)
@@ -51,6 +51,7 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - v0.5.1 Tapping the big cover photo in an event opens its Amazon Photos album.
 - v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Didn't help on its own.
 - v0.6.0 App moved into `app/` so Chrome sees a new scope, sidestepping a ghost "already installed" entry for /Timeline/. Data carries over (same origin).
+- v0.6.1 Removed the bundled family photos from the public app (events already on the phone are kept).
 - v0.7.0 Secret Tally filter: long-press the title, enter the Tally PIN, and Tally sessions show in a column on the right (count per month at Years, dots per day at Months/Weeks; tap for the list). Long-press again to lock; locks after 60 s in the background.
 - v0.8.0 Tally view is now full width and replaces the events while it's on. Dots are coloured Masturbate / PIV / Other (legend in the filter row). Years: each month's sessions as a row of dots; Months/Weeks: dots placed across the width by time of day, with 06/12/18 guides.
 - v0.9.0 Tally tag picker (Tags… chip): choose up to 6 tags, each with its own colour; defaults to PIV vs M-Orgasm. Selection is saved encrypted with the Tally key.
@@ -63,3 +64,4 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - Confirm exact dates for the May 2022 events and add the Amazon album link.
 - Sync: Emily's login not created yet. Add her user, replace EMILY_UID in database.rules.json and paste the rules into the console again.
 - Data from the Claude-app version doesn't carry over (different origin). Use Copy events / backup to move it.
+- Going private: Firebase Auth (email/password, stays signed in) + RTDB, photos stored compressed in RTDB (free plan). Waiting on Ben's Firebase config.
