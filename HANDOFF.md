@@ -51,17 +51,17 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - v0.5.1 Tapping the big cover photo in an event opens its Amazon Photos album.
 - v0.5.2 Manifest `id` + `start_url` set to `./?app=timeline-1` so Chrome offers a fresh install instead of "already installed" (same fix as Tally v1.8.3). Didn't help on its own.
 - v0.6.0 App moved into `app/` so Chrome sees a new scope, sidestepping a ghost "already installed" entry for /Timeline/. Data carries over (same origin).
-- v0.6.1 Removed the bundled family photos from the public app (events already on the phone are kept).
 - v0.7.0 Secret Tally filter: long-press the title, enter the Tally PIN, and Tally sessions show in a column on the right (count per month at Years, dots per day at Months/Weeks; tap for the list). Long-press again to lock; locks after 60 s in the background.
 - v0.8.0 Tally view is now full width and replaces the events while it's on. Dots are coloured Masturbate / PIV / Other (legend in the filter row). Years: each month's sessions as a row of dots; Months/Weeks: dots placed across the width by time of day, with 06/12/18 guides.
 - v0.9.0 Tally tag picker (Tags… chip): choose up to 6 tags, each with its own colour; defaults to PIV vs M-Orgasm. Selection is saved encrypted with the Tally key.
 - v0.9.1 "Install app" button (beforeinstallprompt); Chrome's ⋮ menu install has been failing on Ben's Pixel.
 - v0.10.1 Sync switched on (project timeline-7b9ae); Ben's login only so far.
 - v0.10.0 Firebase cloud sync with sign-in (dormant until FB_CONFIG is filled in). Events and photos sync between phones; daily cloud backups.
+- v0.10.2 Bundled family photos removed from the public app. They stay on phones and in the private Firebase copy.
 
 ## Open threads
 - Check the photo picker and EXIF dates now it's on Pages (it failed inside the Claude app).
 - Confirm exact dates for the May 2022 events and add the Amazon album link.
 - Sync: Emily's login not created yet. Add her user, replace EMILY_UID in database.rules.json and paste the rules into the console again.
 - Data from the Claude-app version doesn't carry over (different origin). Use Copy events / backup to move it.
-- Going private: Firebase Auth (email/password, stays signed in) + RTDB, photos stored compressed in RTDB (free plan). Waiting on Ben's Firebase config.
+- Family photos are still in the public repo's git history (commits before v0.10.2) until the history is squashed.
