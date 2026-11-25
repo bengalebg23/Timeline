@@ -25,6 +25,7 @@ Live at https://bengalebg23.github.io/Timeline/app/ (the repo root redirects the
 - Status: dot on the ⋯ button (green synced, amber saving/offline, red problem, hollow signed out). Errors show as a toast and in the menu with a Retry button.
 - sw.js never caches firebaseio / firebasedatabase.app / googleapis requests (this also stops Tally's vault GET being served stale).
 - Firebase JS SDK 10.12.0 (modular, dynamic import from gstatic), same as MealRota.
+- **Inbox (private repo bengalebg23/TimelineInbox):** Claude pushes `batches/*.json` (+ `photos/`), a GitHub Action writes them into `timeline/events` and `timeline/photos` using the database secret, and logs to `results/`. Existing ids are skipped so phone edits are never overwritten.
 
 ## Tally (secret filter, v0.7.0)
 - Read-only. Tally is on the same origin, so Timeline reads Tally's `tally.vault` (PIN-wrapped key) and decrypts the newer of `tally.blob` and the Firebase copy (`vaults/<vid>.json`, REST GET).
